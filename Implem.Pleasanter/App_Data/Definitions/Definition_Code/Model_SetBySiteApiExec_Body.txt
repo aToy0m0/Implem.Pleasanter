@@ -4,4 +4,5 @@
         context: context,
         ss: new SiteSettings(),
         data: siteApiModel);
+    if (context.ErrorData.Type != Error.Types.None) return;
 }

@@ -1999,6 +1999,10 @@ namespace Implem.Pleasanter.Models
                 parentId: parentId,
                 inheritPermission: inheritPermission,
                 siteApiModel: siteApiModel);
+            if (context.ErrorData.Type != Error.Types.None)
+            {
+                return ApiResults.Error(context: context, errorData: context.ErrorData);
+            }
             var ss = siteModel.SiteSettings;
             if (!Mime.ValidateOnApi(contentType: context.ContentType))
             {
@@ -2068,6 +2072,7 @@ namespace Implem.Pleasanter.Models
                 parentId: ss.SiteId,
                 inheritPermission: ss.InheritPermission,
                 siteApiModel: siteApiModel);
+            if (context.ErrorData.Type != Error.Types.None) return false;
             if (context.ContractSettings.SitesLimit(context: context))
             {
                 return false;
@@ -2130,6 +2135,10 @@ namespace Implem.Pleasanter.Models
                 context: context,
                 ss: ss,
                 data: siteApiModel);
+            if (context.ErrorData.Type != Error.Types.None)
+            {
+                return ApiResults.Error(context: context, errorData: context.ErrorData);
+            }
             siteModel.SiteSettings = SiteSettingsUtilities.Get(
                 context: context,
                 siteModel: siteModel,
@@ -2219,6 +2228,7 @@ namespace Implem.Pleasanter.Models
                 context: context,
                 ss: ss,
                 data: siteApiModel);
+            if (context.ErrorData.Type != Error.Types.None) return false;
             siteModel.SiteSettings = SiteSettingsUtilities.Get(
                 context: context,
                 siteModel: siteModel,
@@ -4252,7 +4262,13 @@ namespace Implem.Pleasanter.Models
                     ?.Get(sourceSiteModel.SiteSettings.TabName(0))
                     .Add(column.ColumnName);
             }
-            Repository.ExecuteNonQuery(
+            var scriptPermission = SiteValidators.OnUpdatingServerScripts(
+                context: context, model: sourceSiteModel, setBySession: false);
+            if (scriptPermission.Type != Error.Types.None)
+            {
+                return scriptPermission.MessageJson(context: context);
+            }
+            var updateResponse = Repository.ExecuteScalar_response(
                 context: context,
                 transactional: true,
                 statements: new SqlStatement[]
@@ -4262,7 +4278,13 @@ namespace Implem.Pleasanter.Models
                             sourceSiteModel.SiteSettings.RecordingJson(context: context)),
                         where: Rds.SitesWhere()
                             .TenantId(context.TenantId)
-                            .SiteId(sourceSiteModel.SiteId)),
+                            .SiteId(sourceSiteModel.SiteId)
+                            .UpdatedTime(sourceSiteModel.UpdatedTime.Value)),
+                    new SqlStatement()
+                    {
+                        IfConflicted = true,
+                        Id = sourceSiteModel.SiteId
+                    },
                     Rds.PhysicalDeleteLinks(
                         where: Rds.LinksWhere().SourceId(sourceSiteModel.SiteId)),
                     LinkUtilities.Insert(sourceSiteModel.SiteSettings.Links
@@ -4271,6 +4293,11 @@ namespace Implem.Pleasanter.Models
                         .Distinct()
                         .ToDictionary(o => o, o => sourceSiteModel.SiteId))
                 });
+            if (updateResponse.Event == "Conflicted")
+            {
+                return Messages.ResponseUpdateConflicts(
+                    context: context, data: sourceSiteModel.Updator.Name).ToJson();
+            }
             var sortable = CanSortTable(context, id);
             var res = new ResponseCollection(context: context)
                 .CloseDialog()
@@ -4790,7 +4817,8 @@ namespace Implem.Pleasanter.Models
                                             href: "#ServerScriptsSettingsEditor",
                                             text: Displays.ServerScript(context: context)),
                                     _using: context.ContractSettings.ServerScript != false
-                                        && Parameters.Script.ServerScript != false)
+                                        && Parameters.Script.ServerScript != false
+                                        && context.CanManageServerScript(ss: ss))
                                 .Li(
                                     action: () => hb
                                         .A(
@@ -4806,11 +4834,12 @@ namespace Implem.Pleasanter.Models
                             break;
                     }
                     hb
-                        .Li(action: () => hb
-                            .A(
-                                href: "#FieldSetSiteAccessControl",
-                                text: Displays.SiteAccessControl(context: context),
-                                _using: context.CanManagePermission(ss: ss)))
+                        .Li(
+                            action: () => hb
+                                .A(
+                                    href: "#FieldSetSiteAccessControl",
+                                    text: Displays.SiteAccessControl(context: context)),
+                            _using: context.CanManagePermission(ss: ss))
                         .Li(
                             action: () => hb
                                 .A(
@@ -5969,6 +5998,12 @@ namespace Implem.Pleasanter.Models
         /// </summary>
         public static string Editor(Context context, SiteModel siteModel)
         {
+            if (siteModel.SiteId > 0)
+            {
+                // History contains old inheritance. Use today's permissions for definition access.
+                var current = new SiteModel(context: context, siteId: siteModel.SiteId);
+                context.SetPermissions(ss: current.SiteSettings, referenceId: siteModel.SiteId);
+            }
             var invalid = SiteValidators.OnEditing(
                 context: context, ss: siteModel.SiteSettings, siteModel: siteModel);
             switch (invalid.Type)
@@ -6277,7 +6312,8 @@ namespace Implem.Pleasanter.Models
                         .Class("dialog")
                         .Title(Displays.ServerScript(context: context)),
                     _using: context.ContractSettings.ServerScript != false
-                        && Parameters.Script.ServerScript != false)
+                        && Parameters.Script.ServerScript != false
+                        && context.CanManageServerScript(ss: ss))
                 .Div(
                     attributes: new HtmlAttributes()
                         .Id("BulkUpdateColumnDialog")
@@ -17867,7 +17903,8 @@ namespace Implem.Pleasanter.Models
             this HtmlBuilder hb, Context context, SiteSettings ss)
         {
             if (context.ContractSettings.ServerScript == false
-                || Parameters.Script.ServerScript == false) return hb;
+                || Parameters.Script.ServerScript == false
+                || !context.CanManageServerScript(ss: ss)) return hb;
             return hb.TabsPanelField(id: "ServerScriptsSettingsEditor", action: () => hb
                 .Div(css: "command-left", action: () => hb
                     .Button(
@@ -17932,6 +17969,7 @@ namespace Implem.Pleasanter.Models
         /// </summary>
         public static HtmlBuilder EditServerScript(this HtmlBuilder hb, Context context, SiteSettings ss)
         {
+            if (!context.CanManageServerScript(ss: ss)) return hb;
             var selected = context.Forms.Data("EditServerScript").Deserialize<IEnumerable<int>>();
             return hb.GridTable(
                 context: context,
@@ -18119,6 +18157,7 @@ namespace Implem.Pleasanter.Models
             Context context, SiteSettings ss, string controlId, ServerScript script)
         {
             var hb = new HtmlBuilder();
+            if (!context.CanManageServerScript(ss: ss)) return hb;
             var conditions = ss.ViewSelectableOptions();
             var outputDestinationCss = " output-destination-script";
             var enclosedCss = " enclosed" +

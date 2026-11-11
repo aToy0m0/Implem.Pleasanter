@@ -24,6 +24,7 @@
     {
         SetBySession(context: context);
     }
+<!--Model_ProtectServerScriptSettings_Sites-->
     var statements = new List<SqlStatement>();
 
 <!--Model_OnUpdatingExtendedSqls-->

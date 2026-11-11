@@ -871,6 +871,7 @@ namespace Implem.Pleasanter.Models
                     context: context,
                     ss: new SiteSettings(),
                     data: siteApiModel);
+                if (context.ErrorData.Type != Error.Types.None) return;
             }
             MethodType = methodType;
             OnConstructed(context: context);
@@ -1309,6 +1310,9 @@ namespace Implem.Pleasanter.Models
             {
                 SetBySession(context: context);
             }
+            var scriptPermission = SiteValidators.OnUpdatingServerScripts(
+                context: context, model: this, setBySession: setBySession);
+            if (scriptPermission.Type != Error.Types.None) return scriptPermission;
             var statements = new List<SqlStatement>();
             var verUp = Versions.VerUp(
                 context: context,
@@ -1789,6 +1793,13 @@ namespace Implem.Pleasanter.Models
 
         public void SetByApi(Context context, SiteSettings ss, SiteApiModel data)
         {
+            var scriptPermission = SiteValidators.OnPreparingServerScriptSettingsByApi(
+                context: context, model: this, data: data);
+            if (scriptPermission.Type != Error.Types.None)
+            {
+                context.ErrorData = scriptPermission;
+                return;
+            }
             if (data.Title != null) Title = new Title(SiteId, data.Title);
             if (data.Body != null) Body = data.Body.ToString().ToString();
             if (data.SiteName != null) SiteName = data.SiteName.ToString().ToString();
@@ -2325,7 +2336,13 @@ namespace Implem.Pleasanter.Models
                         .Select(permission => $"{permission.Name},{permission.Id},{(long)permission.Type}")
                         .ToList();
             }
-            data.SiteSettings = SiteSettings.RecordingData(context: context);
+            var current = new SiteModel(context: context, siteId: SiteId);
+            var output = SiteSettings.RecordingData(context: context);
+            if (!context.SetPermissionsAndCanManageServerScript(ss: current.SiteSettings))
+            {
+                ServerScriptSettingsUtilities.RemoveDefinition(ss: output);
+            }
+            data.SiteSettings = output;
             data.Publish = Publish;
             data.DisableCrossSearch = DisableCrossSearch;
             data.LockedTime = LockedTime.Value.ToLocal(context: context);
@@ -2494,10 +2511,15 @@ namespace Implem.Pleasanter.Models
             bool setSiteSettingsPropertiesBySession = true)
         {
             var invalidFormat = string.Empty;
+            var ss = SiteSettingsUtilities.Get(
+                context: context, siteModel: this, referenceId: SiteId);
+            var current = SiteId > 0
+                ? new SiteModel(context: context, siteId: SiteId).SiteSettings
+                : null;
+            if (current != null) context.SetPermissions(ss: current, referenceId: SiteId);
             var invalid = SiteValidators.OnSetSiteSettings(
                 context: context,
-                ss: SiteSettingsUtilities.Get(
-                    context: context, siteModel: this, referenceId: SiteId),
+                ss: ss,
                 data: out invalidFormat);
             switch (invalid.Type)
             {
@@ -2515,6 +2537,8 @@ namespace Implem.Pleasanter.Models
             {
                 SetSiteSettingsPropertiesBySession(context: context);
             }
+            // Session settings may contain old inheritance and replace the permission cache.
+            if (current != null) context.SetPermissions(ss: current, referenceId: SiteId);
             SetSiteSettings(context: context, res: res);
             Session_SiteSettings(
                 context: context,

@@ -79,7 +79,8 @@ namespace Implem.Pleasanter.Libraries.HtmlParts
             Permissions.Types.Export,
             Permissions.Types.Import,
             Permissions.Types.ManageSite,
-            Permissions.Types.ManagePermission
+            Permissions.Types.ManagePermission,
+            Permissions.Types.ManageServerScript
         };
 
         public static bool Readable(Context context, string tableName)

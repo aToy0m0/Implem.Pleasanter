@@ -825,6 +825,7 @@ namespace Implem.Pleasanter.Models
                                 context: context,
                                 controlId: "PermissionParts",
                                 labelText: Displays.Permissions(context: context),
+                                sitePermission: site,
                                 permissionType: (Permissions.Types)context.Forms.Long(
                                     "PermissionPattern"),
                                 disableRecordPermission: site
@@ -838,7 +839,7 @@ namespace Implem.Pleasanter.Models
                             selector: "#CurrentPermissions",
                             currentPermissions: currentPermissions,
                             selectedCurrentPermissions: selectedCurrentPermissions,
-                            permissionType: GetPermissionTypeByForm(context: context));
+                            permissionType: GetPermissionTypeByForm(context: context, sitePermission: site));
                         break;
                     case "DeletePermissions":
                         res.DeletePermissions(
@@ -1074,6 +1075,7 @@ namespace Implem.Pleasanter.Models
                         .Split_3rd()
                         .ToLong(),
                     referenceId: referenceId,
+                    sitePermission: site,
                     disableRecordPermission: site
                         ? false
                         : siteModel.SiteSettings.PermissionForUpdating?.Any() == true)).ToJson();
@@ -1099,6 +1101,7 @@ namespace Implem.Pleasanter.Models
             Context context,
             Permissions.Types permissionType,
             long referenceId,
+            bool sitePermission,
             bool disableRecordPermission)
         {
             var hb = new HtmlBuilder();
@@ -1115,12 +1118,8 @@ namespace Implem.Pleasanter.Models
                         controlId: "PermissionPattern",
                         controlCss: " auto-postback",
                         labelText: Displays.Pattern(context: context),
-                        optionCollection: Parameters.Permissions.Pattern
-                            .ToDictionary(
-                                o => o.Value.ToString(),
-                                o => new ControlData(Displays.Get(
-                                    context: context,
-                                    id: o.Key))),
+                        optionCollection: PermissionPatternOptions(
+                            context: context, sitePermission: sitePermission),
                         selectedValue: permissionType.ToLong().ToString(),
                         addSelectedValue: false,
                         action: "SetPermissions",
@@ -1130,6 +1129,7 @@ namespace Implem.Pleasanter.Models
                         controlId: "PermissionParts",
                         labelText: Displays.Permissions(context: context),
                         permissionType: permissionType,
+                        sitePermission: sitePermission,
                         disableRecordPermission: disableRecordPermission)
                     .P(css: "message-dialog")
                     .Div(css: "command-center", action: () => hb
@@ -1152,13 +1152,30 @@ namespace Implem.Pleasanter.Models
         /// <summary>
         /// Fixed:
         /// </summary>
+        public static Dictionary<string, ControlData> PermissionPatternOptions(
+            Context context, bool sitePermission)
+        {
+            return Parameters.Permissions.Pattern
+                .GroupBy(pattern => sitePermission
+                    ? pattern.Value
+                    : pattern.Value & ~(long)Permissions.Types.ManageServerScript)
+                .ToDictionary(
+                    group => group.Key.ToString(),
+                    group => new ControlData(group.Select(pattern => Displays.Get(
+                        context: context, id: pattern.Key)).Join(" / ")));
+        }
+
+        /// <summary>
+        /// Fixed:
+        /// </summary>
         private static HtmlBuilder PermissionParts(
             this HtmlBuilder hb,
             Context context,
             string controlId,
             string labelText,
             Permissions.Types permissionType,
-            bool disableRecordPermission)
+            bool disableRecordPermission,
+            bool sitePermission = false)
         {
             return hb.FieldSet(
                 id: controlId,
@@ -1209,7 +1226,13 @@ namespace Implem.Pleasanter.Models
                         context: context,
                         permissionType: permissionType,
                         type: Permissions.Types.ManagePermission,
-                        disableRecordPermission: disableRecordPermission));
+                        disableRecordPermission: disableRecordPermission)
+                    .PermissionPart(
+                        context: context,
+                        permissionType: permissionType,
+                        type: Permissions.Types.ManageServerScript,
+                        disableRecordPermission: disableRecordPermission,
+                        _using: sitePermission));
         }
 
         /// <summary>
@@ -1220,8 +1243,10 @@ namespace Implem.Pleasanter.Models
             Context context,
             Permissions.Types permissionType,
             Permissions.Types type,
-            bool disableRecordPermission)
+            bool disableRecordPermission,
+            bool _using = true)
         {
+            if (!_using) return hb;
             return hb.FieldCheckBox(
                 disabled: disableRecordPermission,
                 controlId: type.ToString(),
@@ -1247,7 +1272,7 @@ namespace Implem.Pleasanter.Models
         /// <summary>
         /// Fixed:
         /// </summary>
-        public static Permissions.Types GetPermissionTypeByForm(Context context)
+        public static Permissions.Types GetPermissionTypeByForm(Context context, bool sitePermission = false)
         {
             var permissionType = Permissions.Types.NotSet;
             if (context.Forms.Bool("Read")) permissionType |= Permissions.Types.Read;
@@ -1259,6 +1284,7 @@ namespace Implem.Pleasanter.Models
             if (context.Forms.Bool("Import")) permissionType |= Permissions.Types.Import;
             if (context.Forms.Bool("ManageSite")) permissionType |= Permissions.Types.ManageSite;
             if (context.Forms.Bool("ManagePermission")) permissionType |= Permissions.Types.ManagePermission;
+            if (sitePermission && context.Forms.Bool("ManageServerScript")) permissionType |= Permissions.Types.ManageServerScript;
             return permissionType;
         }
 
@@ -1692,12 +1718,8 @@ namespace Implem.Pleasanter.Models
                         controlId: "PermissionForCreatingPattern",
                         controlCss: " auto-postback",
                         labelText: Displays.Pattern(context: context),
-                        optionCollection: Parameters.Permissions.Pattern
-                            .ToDictionary(
-                                o => o.Value.ToString(),
-                                o => new ControlData(Displays.Get(
-                                    context: context,
-                                    id: o.Key))),
+                        optionCollection: PermissionPatternOptions(
+                            context: context, sitePermission: false),
                         selectedValue: permissionType.ToLong().ToString(),
                         addSelectedValue: false,
                         action: "SetPermissionForCreating",
@@ -1904,12 +1926,8 @@ namespace Implem.Pleasanter.Models
                         controlId: "PermissionForUpdatingPattern",
                         controlCss: " auto-postback",
                         labelText: Displays.Pattern(context: context),
-                        optionCollection: Parameters.Permissions.Pattern
-                            .ToDictionary(
-                                o => o.Value.ToString(),
-                                o => new ControlData(Displays.Get(
-                                    context: context,
-                                    id: o.Key))),
+                        optionCollection: PermissionPatternOptions(
+                            context: context, sitePermission: false),
                         selectedValue: permissionType.ToLong().ToString(),
                         addSelectedValue: false,
                         action: "SetPermissionForUpdating",

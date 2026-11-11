@@ -29,8 +29,9 @@ namespace Implem.Pleasanter.Libraries.ServerScripts
             using (var engine = new ScriptEngine(debug: false))
             {
                 engine.AddHostObject("model", Model);
-                engine.AddHostObject("context", context);
-                engine.AddHostType(typeof(FormulaServerScriptUtilities));
+                // Formulas may be edited without server-script management permission.
+                // Only expose the formatting operation; keep the request context in C#.
+                engine.AddHostObject("formulaText", new TextFormatter(context));
                 var functionScripts = GetDateScript()
                     + GetDateDifScript()
                     + GetDayScript()
@@ -102,6 +103,21 @@ namespace Implem.Pleasanter.Libraries.ServerScripts
                     throw new FormulaErrorException(ex.Message);
                 }
                 return value == Undefined.Value ? string.Empty : value;
+            }
+        }
+
+        public sealed class TextFormatter
+        {
+            private readonly Context Context;
+
+            public TextFormatter(Context context)
+            {
+                Context = context;
+            }
+
+            public string Format(object value, string format)
+            {
+                return GetText(value: value, format: format, context: Context);
             }
         }
 
@@ -1642,7 +1658,7 @@ namespace Implem.Pleasanter.Libraries.ServerScripts
                     var reg = new RegExp('^0+$', 'g');
                     if (reg.test(format))
                     {
-                        return FormulaServerScriptUtilities.GetText(value, '#' + format, context);
+                        return formulaText.Format(value, '#' + format);
                     }
                     if (format.toString().toLowerCase() === 'true'
                         || format.toString().toLowerCase() === 'false'
@@ -1650,7 +1666,7 @@ namespace Implem.Pleasanter.Libraries.ServerScripts
                     {
                         return '#VALUE!';
                     }
-                    return FormulaServerScriptUtilities.GetText(value, format, context);
+                    return formulaText.Format(value, format);
                 }";
         }
 

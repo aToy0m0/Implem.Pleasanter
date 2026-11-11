@@ -25,6 +25,7 @@ namespace Implem.Pleasanter.Libraries.Security
             Import = 64,                        // 00000000000000000000000001000000
             ManageSite = 128,                   // 00000000000000000000000010000000
             ManagePermission = 256,             // 00000000000000000000000100000000
+            ManageServerScript = 512,           // 00000000000000000000001000000000
             ManageTenant = 1073741824,          // 01000000000000000000000000000000
             ManageService = 2147483648,         // 10000000000000000000000000000000
         }
@@ -43,6 +44,7 @@ namespace Implem.Pleasanter.Libraries.Security
                 case "Import": return Types.Import;
                 case "ManageSite": return Types.ManageSite;
                 case "ManagePermission": return Types.ManagePermission;
+                case "ManageServerScript": return Types.ManageServerScript;
                 case "ManageTenant": return Types.ManageTenant;
                 case "ManageService": return Types.ManageService;
                 default: return Types.NotSet;
@@ -712,6 +714,21 @@ namespace Implem.Pleasanter.Libraries.Security
         public static bool CanManagePermission(this Context context, SiteSettings ss, bool site = false)
         {
             return context.ItemsCan(ss: ss, type: Types.ManagePermission, site: site);
+        }
+
+        public static bool CanManageServerScript(this Context context, SiteSettings ss)
+        {
+            return context.ItemsCan(
+                ss: ss,
+                type: Types.ManageSite | Types.ManageServerScript,
+                site: true);
+        }
+
+        public static bool SetPermissionsAndCanManageServerScript(this Context context, SiteSettings ss)
+        {
+            // Callers pass persisted settings, never inheritance from an update request or history.
+            context.SetPermissions(ss: ss, referenceId: ss.SiteId);
+            return context.CanManageServerScript(ss: ss);
         }
 
         public static bool CanRestart(this Context context)

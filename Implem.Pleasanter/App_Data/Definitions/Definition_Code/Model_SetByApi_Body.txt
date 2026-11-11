@@ -1,6 +1,7 @@
 ﻿public void SetByApi(Context context, SiteSettings ss, #ModelName#ApiModel data)
 {
 
+<!--Model_PrepareServerScriptSettings_Sites-->
 <!--Model_SetByApi_ColumnCases-->
 <!--Model_SetByApi_ColumnCasesSite-->
 <!--Model_SetByApi_ColumnCasesGroupMembers-->

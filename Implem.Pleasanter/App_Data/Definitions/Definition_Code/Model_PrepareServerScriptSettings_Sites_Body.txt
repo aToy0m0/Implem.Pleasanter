@@ -1,0 +1,7 @@
+﻿var scriptPermission = SiteValidators.OnPreparingServerScriptSettingsByApi(
+    context: context, model: this, data: data);
+if (scriptPermission.Type != Error.Types.None)
+{
+    context.ErrorData = scriptPermission;
+    return;
+}

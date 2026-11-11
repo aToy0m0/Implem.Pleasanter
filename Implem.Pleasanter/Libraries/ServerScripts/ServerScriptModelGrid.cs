@@ -1,13 +1,19 @@
 ﻿using Implem.Pleasanter.Libraries.Requests;
 using Implem.Pleasanter.Libraries.Settings;
 using Implem.Pleasanter.Models;
+using Microsoft.ClearScript;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 
 namespace Implem.Pleasanter.Libraries.ServerScripts
 {
     public class ServerScriptModelGrid
     {
+        [ScriptUsage(ScriptAccess.None)]
+        [JsonIgnore]
         public Context Context { get; set; }
+        [ScriptUsage(ScriptAccess.None)]
+        [JsonIgnore]
         public SiteSettings SiteSettings { get; set; }
         public int TotalCount { get; set; }
 

@@ -1,9 +1,13 @@
 ﻿using Implem.DefinitionAccessor;
 using Implem.Libraries.Utilities;
 using Implem.Pleasanter.Libraries.Requests;
+using Implem.Pleasanter.Libraries.Security;
 using Implem.Pleasanter.Libraries.Server;
 using Implem.Pleasanter.Libraries.Settings;
 using Implem.Pleasanter.Models;
+using Microsoft.ClearScript;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Dynamic;
 using System.Linq;
@@ -22,8 +26,12 @@ namespace Implem.Pleasanter.Libraries.ServerScripts
         };
 
         private readonly Context Context;
+        [ScriptUsage(ScriptAccess.None)]
+        [JsonIgnore]
         public BaseItemModel Model;
         private readonly bool OnTesting;
+        private readonly bool RestrictSiteSettings;
+        private JObject SiteSettingsData;
         public int? ProcessId { get; set; }
         public int?[] ProcessIds { get; set; }
 
@@ -32,6 +40,35 @@ namespace Implem.Pleasanter.Libraries.ServerScripts
             Context = context;
             Model = model ?? new BaseItemModel();
             OnTesting = onTesting;
+            if (Model is SiteModel siteModel && siteModel.SiteId > 0)
+            {
+                var current = new SiteModel(context: context, siteId: siteModel.SiteId);
+                RestrictSiteSettings = !context.SetPermissionsAndCanManageServerScript(ss: current.SiteSettings);
+                SiteSettingsData = GetSiteSettingsData(
+                    context: context,
+                    ss: siteModel.SiteSettings,
+                    restrictServerScripts: RestrictSiteSettings);
+                if (RestrictSiteSettings)
+                {
+                    // This fetched model belongs to the script API; runtime/cache settings stay intact.
+                    siteModel.SiteSettings = SiteSettingsData.ToObject<SiteSettings>();
+                }
+            }
+        }
+
+        internal static JObject GetSiteSettingsData(Context context, SiteSettings ss, bool restrictServerScripts)
+        {
+            var output = ss.RecordingData(context: context);
+            if (restrictServerScripts)
+            {
+                ServerScriptSettingsUtilities.RemoveDefinition(ss: output);
+            }
+            else
+            {
+                ServerScriptSettingsUtilities.PreserveDefinition(target: output, current: ss);
+            }
+            // A JSON data object does not expose SiteSettings.GetServerScripts or other CLR methods.
+            return JObject.Parse(output.ToJson());
         }
 
         public override bool TryGetIndex(
@@ -157,7 +194,7 @@ namespace Implem.Pleasanter.Libraries.ServerScripts
                             result = siteModel.InheritPermission;
                             return true;
                         case nameof(siteModel.SiteSettings):
-                            result = siteModel.SiteSettings;
+                            result = SiteSettingsData ?? (object)siteModel.SiteSettings;
                             return true;
                         case nameof(siteModel.Publish):
                             result = siteModel.Publish;
@@ -332,8 +369,29 @@ namespace Implem.Pleasanter.Libraries.ServerScripts
                         siteModel.InheritPermission = value.ToInt();
                         return true;
                     case nameof(SiteModel.SiteSettings):
-                        siteModel.SiteSettings = value.ToStr().Deserialize<SiteSettings>() ?? new SiteSettings();
+                        var settings = value.ToStr().Deserialize<SiteSettings>() ?? new SiteSettings();
+                        if (RestrictSiteSettings
+                            && (settings.ServerScripts != null
+                                || settings.ServerScriptsAllDisabled.HasValue
+                                || settings.ServerScriptsGetErrorDetails.HasValue))
+                        {
+                            throw new UnauthorizedAccessException("Server script management permission is required.");
+                        }
+                        var serverScripts = settings.ServerScripts;
+                        var serverScriptsAllDisabled = settings.ServerScriptsAllDisabled;
+                        var serverScriptsGetErrorDetails = settings.ServerScriptsGetErrorDetails;
+                        siteModel.SiteSettings = settings;
                         siteModel.SiteSettings.Init(context: Context);
+                        if (SiteSettingsData != null)
+                        {
+                            settings.ServerScripts = serverScripts;
+                            settings.ServerScriptsAllDisabled = serverScriptsAllDisabled;
+                            settings.ServerScriptsGetErrorDetails = serverScriptsGetErrorDetails;
+                            SiteSettingsData = GetSiteSettingsData(
+                                context: Context,
+                                ss: settings,
+                                restrictServerScripts: RestrictSiteSettings);
+                        }
                         return true;
                     case nameof(SiteModel.Publish):
                         siteModel.Publish = value.ToBool();
@@ -444,7 +502,25 @@ namespace Implem.Pleasanter.Libraries.ServerScripts
             }
             if (Model is SiteModel siteModel)
             {
+                if (SiteSettingsData != null)
+                {
+                    var settings = SiteSettingsData.ToObject<SiteSettings>();
+                    if (RestrictSiteSettings
+                        && (settings.ServerScripts != null
+                            || settings.ServerScriptsAllDisabled.HasValue
+                            || settings.ServerScriptsGetErrorDetails.HasValue))
+                    {
+                        throw new UnauthorizedAccessException("Server script management permission is required.");
+                    }
+                    siteModel.SiteSettings = settings;
+                }
                 var apiModel = siteModel.GetByApi(context: context);
+                if (SiteSettingsData != null && !RestrictSiteSettings)
+                {
+                    ServerScriptSettingsUtilities.PreserveDefinition(
+                        target: apiModel.SiteSettings,
+                        current: siteModel.SiteSettings);
+                }
                 apiModel.Comments = null;
                 return apiModel.ToJson();
             }

@@ -15,6 +15,23 @@ namespace Implem.Pleasanter.Models
         /// <summary>
         /// Fixed:
         /// </summary>
+        public static bool GrantsOwnServerScriptManagement(
+            int userId,
+            IEnumerable<PermissionModel> current,
+            IEnumerable<string> proposed)
+        {
+            var alreadyAssigned = current.Any(permission =>
+                permission.UserId == userId
+                && permission.PermissionType.HasFlag(Permissions.Types.ManageServerScript));
+            return !alreadyAssigned && Permissions.Get(proposed.ToList()).Any(permission =>
+                permission.Name == "User"
+                && permission.Id == userId
+                && permission.Type.HasFlag(Permissions.Types.ManageServerScript));
+        }
+
+        /// <summary>
+        /// Fixed:
+        /// </summary>
         public static ErrorData OnUpdating(Context context, SiteSettings ss)
         {
             if (!context.CanManagePermission(ss: ss))

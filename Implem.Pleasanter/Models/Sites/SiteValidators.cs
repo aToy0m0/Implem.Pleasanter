@@ -1,6 +1,7 @@
 ﻿using Implem.DefinitionAccessor;
 using Implem.Libraries.Utilities;
 using Implem.Pleasanter.Libraries.AiConnect;
+using Implem.Pleasanter.Libraries.DataSources;
 using Implem.Pleasanter.Libraries.General;
 using Implem.Pleasanter.Libraries.Requests;
 using Implem.Pleasanter.Libraries.Security;
@@ -11,6 +12,67 @@ namespace Implem.Pleasanter.Models
 {
     public static class SiteValidators
     {
+        public static ErrorData OnPreparingServerScriptSettingsByApi(
+            Context context, SiteModel model, SiteApiModel data)
+        {
+            if (data?.SiteSettings == null) return new ErrorData(type: Error.Types.None);
+            var current = model.SiteId > 0
+                ? new SiteModel(context: context, siteId: model.SiteId).SiteSettings
+                : null;
+            if (data.SiteSettings.ServerScripts != null
+                || data.SiteSettings.ServerScriptsAllDisabled.HasValue
+                || data.SiteSettings.ServerScriptsGetErrorDetails.HasValue)
+            {
+                var authority = current ?? (model.ParentId > 0
+                    ? new SiteModel(context: context, siteId: model.ParentId).SiteSettings
+                    : null);
+                var allowed = authority != null
+                    ? context.SetPermissionsAndCanManageServerScript(ss: authority)
+                    : context.HasPrivilege || context.SiteTopPermission().HasFlag(
+                        Permissions.Types.ManageSite | Permissions.Types.ManageServerScript);
+                if (!allowed) return new ErrorData(type: Error.Types.HasNotPermission);
+            }
+            ServerScriptSettingsUtilities.PreserveOmittedDefinition(
+                target: data.SiteSettings, current: current);
+            return new ErrorData(type: Error.Types.None);
+        }
+
+        public static ErrorData OnUpdatingServerScripts(Context context, SiteModel model, bool setBySession)
+        {
+            var current = new SiteModel(context: context, siteId: model.SiteId);
+            if (model.RecordPermissions != null)
+            {
+                var currentPermissions = new PermissionCollection(
+                    context: context,
+                    where: Rds.PermissionsWhere().ReferenceId(model.SiteId));
+                if (PermissionValidators.GrantsOwnServerScriptManagement(
+                    userId: context.UserId,
+                    current: currentPermissions,
+                    proposed: model.RecordPermissions))
+                {
+                    return new ErrorData(type: Error.Types.HasNotPermission);
+                }
+            }
+            if (!context.SetPermissionsAndCanManageServerScript(ss: current.SiteSettings))
+            {
+                if (setBySession && !context.Api && context.ApiRequestBody.IsNullOrEmpty()
+                    && !context.Forms.Exists("Sites_SiteSettings"))
+                {
+                    // A session can outlive another administrator's edit or a permission revocation.
+                    ServerScriptSettingsUtilities.PreserveDefinition(
+                        target: model.SiteSettings, current: current.SiteSettings);
+                }
+                else if (!ServerScriptSettingsUtilities.SameDefinition(
+                    left: current.SiteSettings, right: model.SiteSettings))
+                {
+                    return new ErrorData(type: Error.Types.HasNotPermission);
+                }
+                // Make preservation conditional on the version that was read above.
+                if (model.Timestamp.IsNullOrEmpty()) model.Timestamp = current.Timestamp;
+            }
+            return new ErrorData(type: Error.Types.None);
+        }
+
         public static ErrorData OnEntry(Context context, SiteSettings ss, bool api = false)
         {
             if (api)
@@ -390,6 +452,13 @@ namespace Implem.Pleasanter.Models
         {
             data = null;
             if (!context.CanManageSite(ss: ss))
+            {
+                return new ErrorData(type: Error.Types.HasNotPermission);
+            }
+            if (!context.CanManageServerScript(ss: ss)
+                && (context.Forms.ControlId()?.Contains("ServerScript") == true
+                    || context.Forms.Keys.Any(key =>
+                        key.StartsWith("ServerScript", StringComparison.Ordinal))))
             {
                 return new ErrorData(type: Error.Types.HasNotPermission);
             }

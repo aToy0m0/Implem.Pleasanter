@@ -1,0 +1,3 @@
+﻿var scriptPermission = SiteValidators.OnUpdatingServerScripts(
+    context: context, model: this, setBySession: setBySession);
+if (scriptPermission.Type != Error.Types.None) return scriptPermission;

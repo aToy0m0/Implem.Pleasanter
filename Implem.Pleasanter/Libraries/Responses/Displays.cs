@@ -8129,6 +8129,16 @@ namespace Implem.Pleasanter.Libraries.Responses
                 data: data);
         }
 
+        public static string ManageServerScript(
+            Context context,
+            params string[] data)
+        {
+            return Get(
+                context: context,
+                id: "ManageServerScript",
+                data: data);
+        }
+
         public static string ManageSite(
             Context context,
             params string[] data)

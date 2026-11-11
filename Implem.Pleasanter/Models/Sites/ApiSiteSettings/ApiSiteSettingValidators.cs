@@ -2,6 +2,7 @@
 using Implem.Pleasanter.Libraries.General;
 using Implem.Pleasanter.Libraries.Requests;
 using Implem.Pleasanter.Libraries.Settings;
+using Implem.Pleasanter.Libraries.Security;
 using Implem.Pleasanter.Models.ApiSiteSettings;
 using System;
 using System.Collections.Generic;
@@ -22,6 +23,11 @@ namespace Implem.Pleasanter.Models
             if (siteSettingsModel == null)
             {
                 return new ErrorData(type: Error.Types.NotFound);
+            }
+            if (siteSettingsModel.ServerScripts != null
+                && !context.SetPermissionsAndCanManageServerScript(ss: new SiteModel(context: context, siteId: ss.SiteId).SiteSettings))
+            {
+                return new ErrorData(type: Error.Types.HasNotPermission);
             }
             ErrorData baseApiValidator;
             if (ApiSiteSetting.ServerScriptRefTypes.Contains(referenceType) && siteSettingsModel.ServerScripts != null)

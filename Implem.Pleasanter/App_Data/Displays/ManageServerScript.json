@@ -1,0 +1,13 @@
+﻿{
+    "Id": "ManageServerScript",
+    "Type": 110,
+    "Languages": [
+        {
+            "Body": "Manage server script"
+        },
+        {
+            "Language": "ja",
+            "Body": "サーバスクリプトの管理"
+        }
+    ]
+}

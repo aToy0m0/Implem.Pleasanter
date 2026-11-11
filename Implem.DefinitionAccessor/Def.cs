@@ -621,6 +621,7 @@ namespace Implem.DefinitionAccessor
                     case "Model_PhysicalDeleteByApiCases": Code.Model_PhysicalDeleteByApiCases = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PhysicalDeleteByApiCases, definitionRow, CodeXls); break;
                     case "Model_PhysicalDeleteCases": Code.Model_PhysicalDeleteCases = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PhysicalDeleteCases, definitionRow, CodeXls); break;
                     case "Model_PostInit": Code.Model_PostInit = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PostInit, definitionRow, CodeXls); break;
+                    case "Model_PrepareServerScriptSettings_Sites": Code.Model_PrepareServerScriptSettings_Sites = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PrepareServerScriptSettings_Sites, definitionRow, CodeXls); break;
                     case "Model_PreviousTitle": Code.Model_PreviousTitle = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PreviousTitle, definitionRow, CodeXls); break;
                     case "Model_PropertyUpdated_ColumnCases": Code.Model_PropertyUpdated_ColumnCases = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PropertyUpdated_ColumnCases, definitionRow, CodeXls); break;
                     case "Model_PropertyValue": Code.Model_PropertyValue = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PropertyValue, definitionRow, CodeXls); break;
@@ -628,6 +629,7 @@ namespace Implem.DefinitionAccessor
                     case "Model_PropertyValue_ColumnCases_ToString": Code.Model_PropertyValue_ColumnCases_ToString = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PropertyValue_ColumnCases_ToString, definitionRow, CodeXls); break;
                     case "Model_PropertyValue_Extensions": Code.Model_PropertyValue_Extensions = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PropertyValue_Extensions, definitionRow, CodeXls); break;
                     case "Model_PropertyValues_ColumnCases": Code.Model_PropertyValues_ColumnCases = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PropertyValues_ColumnCases, definitionRow, CodeXls); break;
+                    case "Model_ProtectServerScriptSettings_Sites": Code.Model_ProtectServerScriptSettings_Sites = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_ProtectServerScriptSettings_Sites, definitionRow, CodeXls); break;
                     case "Model_PushState": Code.Model_PushState = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PushState, definitionRow, CodeXls); break;
                     case "Model_PushState_Item": Code.Model_PushState_Item = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_PushState_Item, definitionRow, CodeXls); break;
                     case "Model_ReloadPermissions": Code.Model_ReloadPermissions = definitionRow[1].ToString().NoSpace(definitionRow["NoSpace"].ToBool()); SetCodeTable(CodeTable.Model_ReloadPermissions, definitionRow, CodeXls); break;
@@ -7525,6 +7527,7 @@ namespace Implem.DefinitionAccessor
         public string Model_PhysicalDeleteByApiCases;
         public string Model_PhysicalDeleteCases;
         public string Model_PostInit;
+        public string Model_PrepareServerScriptSettings_Sites;
         public string Model_PreviousTitle;
         public string Model_PropertyUpdated_ColumnCases;
         public string Model_PropertyValue;
@@ -7532,6 +7535,7 @@ namespace Implem.DefinitionAccessor
         public string Model_PropertyValue_ColumnCases_ToString;
         public string Model_PropertyValue_Extensions;
         public string Model_PropertyValues_ColumnCases;
+        public string Model_ProtectServerScriptSettings_Sites;
         public string Model_PushState;
         public string Model_PushState_Item;
         public string Model_ReloadPermissions;
@@ -8437,6 +8441,7 @@ namespace Implem.DefinitionAccessor
         public CodeDefinition Model_PhysicalDeleteByApiCases = new CodeDefinition();
         public CodeDefinition Model_PhysicalDeleteCases = new CodeDefinition();
         public CodeDefinition Model_PostInit = new CodeDefinition();
+        public CodeDefinition Model_PrepareServerScriptSettings_Sites = new CodeDefinition();
         public CodeDefinition Model_PreviousTitle = new CodeDefinition();
         public CodeDefinition Model_PropertyUpdated_ColumnCases = new CodeDefinition();
         public CodeDefinition Model_PropertyValue = new CodeDefinition();
@@ -8444,6 +8449,7 @@ namespace Implem.DefinitionAccessor
         public CodeDefinition Model_PropertyValue_ColumnCases_ToString = new CodeDefinition();
         public CodeDefinition Model_PropertyValue_Extensions = new CodeDefinition();
         public CodeDefinition Model_PropertyValues_ColumnCases = new CodeDefinition();
+        public CodeDefinition Model_ProtectServerScriptSettings_Sites = new CodeDefinition();
         public CodeDefinition Model_PushState = new CodeDefinition();
         public CodeDefinition Model_PushState_Item = new CodeDefinition();
         public CodeDefinition Model_ReloadPermissions = new CodeDefinition();
