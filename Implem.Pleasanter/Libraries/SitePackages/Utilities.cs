@@ -4,6 +4,7 @@ using Implem.Libraries.Utilities;
 using Implem.Pleasanter.Interfaces;
 using Implem.Pleasanter.Libraries.DataSources;
 using Implem.Pleasanter.Libraries.DataTypes;
+using Implem.Pleasanter.Libraries.General;
 using Implem.Pleasanter.Libraries.Html;
 using Implem.Pleasanter.Libraries.HtmlParts;
 using Implem.Pleasanter.Libraries.Requests;
@@ -96,6 +97,10 @@ namespace Implem.Pleasanter.Libraries.SitePackages
                         apiData: apiData);
                 if (sitePackage == null)
                 {
+                    if (context.ErrorData.Type == Error.Types.HasNotPermission)
+                    {
+                        return context.ErrorData.MessageJson(context: context);
+                    }
                     return Messages.ResponseFailedReadFile(context: context).ToJson();
                 }
                 return ImportSitePackage(
@@ -138,6 +143,16 @@ namespace Implem.Pleasanter.Libraries.SitePackages
                 if (sitePackage == null)
                 {
                     return Messages.ResponseInvalidRequest(context: context).ToJson();
+                }
+                var canImportServerScripts = ss.SiteId > 0
+                    ? context.SetPermissionsAndCanManageServerScript(ss: new SiteModel(context: context, siteId: ss.SiteId).SiteSettings)
+                    : context.HasPrivilege || context.SiteTopPermission().HasFlag(
+                        Permissions.Types.ManageSite | Permissions.Types.ManageServerScript);
+                if (sitePackage.Sites.Any(site => ServerScriptSettingsUtilities.HasDefinition(ss: site.SiteSettings))
+                    && !canImportServerScripts)
+                {
+                    context.ErrorData = new ErrorData(type: Error.Types.HasNotPermission);
+                    return context.ErrorData.MessageJson(context: context);
                 }
                 if (context.ContractSettings.SitesLimit(
                     context: context,
@@ -968,6 +983,11 @@ namespace Implem.Pleasanter.Libraries.SitePackages
                     ss: ss);
                 if (sitePackage == null)
                 {
+                    if (context.ErrorData.Type == Error.Types.HasNotPermission)
+                    {
+                        return ResponseFile.Get(apiResponse: ApiResponses.Error(
+                            context: context, errorData: context.ErrorData));
+                    }
                     return null;
                 }
                 var useIndentOption = Parameters.SitePackage.UseIndentOptionOnExport != OptionTypes.Disabled
@@ -1036,21 +1056,7 @@ namespace Implem.Pleasanter.Libraries.SitePackages
             {
                 return null;
             }
-            foreach (var site in sites)
-            {
-                var currentSs = ss.SiteId == site.SiteId
-                    ? ss
-                    : SiteSettingsUtilities.Get(
-                        context: context,
-                        siteId: site.SiteId);
-                if (site.IncludeData
-                    && (context.ContractSettings.Export == false
-                        || !context.CanExport(ss: currentSs)))
-                {
-                    site.IncludeData = false;
-                }
-            }
-            return new SitePackage(
+            var package = new SitePackage(
                 context: context,
                 siteList: sites,
                 includeSitePermission: includeSitePermission,
@@ -1058,6 +1064,7 @@ namespace Implem.Pleasanter.Libraries.SitePackages
                 includeColumnPermission: includeColumnPermission,
                 includeNotifications: includeNotifications,
                 includeReminders: includeReminders);
+            return context.ErrorData.Type == Error.Types.HasNotPermission ? null : package;
         }
 
         public static bool ExceededExportLimit(Context context, List<SelectedSite> sites)

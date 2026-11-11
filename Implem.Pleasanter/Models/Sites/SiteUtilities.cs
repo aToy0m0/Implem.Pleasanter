@@ -1358,6 +1358,7 @@ namespace Implem.Pleasanter.Models
             var beforeSiteId = siteModel.SiteId;
             var beforeInheritPermission = siteModel.InheritPermission;
             var errorData = siteModel.Create(context: context, otherInitValue: true);
+            if (errorData.Type != Error.Types.None) return errorData.MessageJson(context: context);
             if (siteModel.SiteSettings.Exports?.Any() == true)
             {
                 Repository.ExecuteNonQuery(

@@ -2365,12 +2365,23 @@ namespace Implem.Pleasanter.Models
             {
                 SiteSettings = new SiteSettings(context: context, referenceType: ReferenceType);
             }
-            TenantId = context.TenantId;
             var parentSiteModel = ParentId > 0
                 ? new SiteModel(
                     context: context,
                     siteId: ParentId)
                 : null;
+            if (ServerScriptSettingsUtilities.HasDefinition(ss: SiteSettings))
+            {
+                var authority = SiteId > 0
+                    ? new SiteModel(context: context, siteId: SiteId).SiteSettings
+                    : parentSiteModel?.SiteSettings;
+                var allowed = authority != null
+                    ? context.SetPermissionsAndCanManageServerScript(ss: authority)
+                    : context.HasPrivilege || context.SiteTopPermission().HasFlag(
+                        Permissions.Types.ManageSite | Permissions.Types.ManageServerScript);
+                if (!allowed) return new ErrorData(type: Error.Types.HasNotPermission);
+            }
+            TenantId = context.TenantId;
             var notInheritPermission = InheritPermission == 0
                 || RecordPermissions != null
                 || parentSiteModel?.SiteSettings?.NotInheritPermissionsWhenCreatingSite == true;

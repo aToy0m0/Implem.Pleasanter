@@ -7,7 +7,9 @@ using Implem.DefinitionAccessor;
 using Implem.Libraries.Utilities;
 using Implem.Pleasanter.Libraries.DataSources;
 using Implem.Pleasanter.Libraries.Models;
+using Implem.Pleasanter.Libraries.General;
 using Implem.Pleasanter.Libraries.Requests;
+using Implem.Pleasanter.Libraries.Security;
 using Implem.Pleasanter.Libraries.Server;
 using Implem.Pleasanter.Libraries.Settings;
 using Implem.Pleasanter.Models;
@@ -49,7 +51,7 @@ namespace Implem.Pleasanter.Libraries.SitePackages
             var deptIds = new HashSet<int>();
             var groupIds = new HashSet<int>();
             var userIds = new HashSet<int>();
-            Construct(
+            if (!Construct(
                 context: context,
                 siteList: siteList,
                 includeSitePermission: includeSitePermission,
@@ -59,7 +61,15 @@ namespace Implem.Pleasanter.Libraries.SitePackages
                 includeReminders: includeReminders,
                 deptIds: deptIds,
                 groupIds: groupIds,
-                userIds: userIds);
+                userIds: userIds))
+            {
+                // A rejected package must never expose a successfully constructed prefix.
+                Sites.Clear();
+                Data.Clear();
+                Permissions.Clear();
+                HeaderInfo.Convertors.Clear();
+                return;
+            }
             SetPermissionIdList(
                 context: context,
                 sites: Sites,
@@ -79,7 +89,7 @@ namespace Implem.Pleasanter.Libraries.SitePackages
                 userIds: userIds);
         }
 
-        private void Construct(
+        private bool Construct(
             Context context,
             List<SelectedSite> siteList,
             bool includeSitePermission,
@@ -99,9 +109,24 @@ namespace Implem.Pleasanter.Libraries.SitePackages
                     var siteModel = new SiteModel(
                         context: context,
                         siteId: site.SiteId);
-                    var packageSiteModel = new PackageSiteModel(new SiteModel(
-                        context: context,
-                        siteId: site.SiteId));
+                    var ss = siteModel.SiteSettings;
+                    context.SetPermissions(
+                        ss: ss,
+                        referenceId: ss.SiteId);
+                    if (ServerScriptSettingsUtilities.HasDefinition(ss: ss)
+                        && !context.CanManageServerScript(ss: ss))
+                    {
+                        context.ErrorData = new ErrorData(type: Error.Types.HasNotPermission);
+                        return false;
+                    }
+                    if (site.IncludeData
+                        && (context.ContractSettings.Export == false
+                            || !context.CanExport(ss: ss)))
+                    {
+                        site.IncludeData = false;
+                    }
+                    // Authorization and the exported definition use the same database read.
+                    var packageSiteModel = new PackageSiteModel(siteModel);
                     if (packageSiteModel.ReferenceType == "Wikis")
                     {
                         var wikiId = Repository.ExecuteScalar_long(
@@ -152,11 +177,7 @@ namespace Implem.Pleasanter.Libraries.SitePackages
                         siteTitle: packageSiteModel.Title);
                     recordIdList.Clear();
                     View view = null;
-                    var ss = siteModel.SiteSettings;
                     ss.SetChoiceHash(context: context);
-                    context.SetPermissions(
-                        ss: ss,
-                        referenceId: ss.SiteId);
                     var export = new Export(ss.DefaultExportColumns(context: context));
                     export.Header = true;
                     export.Type = Export.Types.Json;
@@ -229,6 +250,7 @@ namespace Implem.Pleasanter.Libraries.SitePackages
                     }
                 }
             }
+            return true;
         }
 
         private void SetPermissionIdList(

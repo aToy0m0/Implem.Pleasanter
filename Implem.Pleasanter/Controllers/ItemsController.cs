@@ -1125,7 +1125,7 @@ namespace Implem.Pleasanter.Controllers
 
         [HttpPost]
         [EnableRateLimiting("Heavy")]
-        public FileContentResult ExportSitePackage(long id)
+        public ActionResult ExportSitePackage(long id)
         {
             var context = new Context();
             var log = new SysLogModel(context: context);
@@ -1135,6 +1135,11 @@ namespace Implem.Pleasanter.Controllers
                     .ExportSitePackage(context: context);
             if (responseFile != null)
             {
+                if (responseFile.IsError())
+                {
+                    log.Finish(context: context, responseSize: responseFile.ErrorMessage.Length);
+                    return StatusCode(responseFile.ErrorStatusCode, responseFile.ErrorMessage);
+                }
                 log.Finish(
                     context: context,
                     responseSize: responseFile.Length);

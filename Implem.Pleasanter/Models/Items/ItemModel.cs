@@ -3282,6 +3282,10 @@ namespace Implem.Pleasanter.Models
                         context: context,
                         ss: Site.SiteSettings,
                         apiData: context.RequestDataString.Deserialize<Sites.SitePackageApiModel>());
+                    if (context.ErrorData.Type == Error.Types.HasNotPermission)
+                    {
+                        return ApiResults.Error(context: context, errorData: context.ErrorData);
+                    }
                     return ApiResults.Get(
                         statusCode: 200,
                         limitPerDate: context.ContractSettings.ApiLimit(),

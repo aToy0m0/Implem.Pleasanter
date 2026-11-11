@@ -1,5 +1,6 @@
 ﻿using Implem.Pleasanter.Libraries.DataSources;
 using Implem.Pleasanter.Libraries.Requests;
+using Implem.Pleasanter.Libraries.General;
 using Implem.Pleasanter.Libraries.Responses;
 using Implem.Pleasanter.Libraries.Security;
 using Implem.Pleasanter.Libraries.SitePackages;
@@ -126,6 +127,7 @@ namespace Implem.Pleasanter.Libraries.SiteManagement
                     includeColumnPermission: false,
                     includeNotifications: true,
                     includeReminders: true);
+                if (context.ErrorData.Type == Error.Types.HasNotPermission) return null;
                 if (sitePackage.HeaderInfo.Convertors.Count == 0) return null;
                 var p = new Process
                 {

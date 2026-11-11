@@ -2,6 +2,7 @@
 using Implem.Pleasanter.Libraries.DataSources;
 using Implem.Pleasanter.Libraries.General;
 using Implem.Pleasanter.Libraries.Requests;
+using Implem.Pleasanter.Libraries.Security;
 using Implem.Pleasanter.Libraries.Responses;
 using Implem.Pleasanter.Libraries.Settings;
 using Implem.Pleasanter.Models;
@@ -75,6 +76,17 @@ namespace Implem.Pleasanter.Libraries.SiteManagement
                 return ResponseFile.Get(apiResponse: ApiResponses.InvalidRequest(context: context));
             }
             var types = context.QueryStrings.Data("Type")?.ToLower()?.Split(",") ?? [];
+            foreach (var site in siteIds)
+            {
+                var current = new SiteModel(context: context, siteId: site.SiteId).SiteSettings;
+                // Historical definitions can also contain credentials. Authorize against today.
+                if (!context.SetPermissionsAndCanManageServerScript(ss: current))
+                {
+                    return ResponseFile.Get(apiResponse: ApiResponses.Error(
+                        context: context,
+                        errorData: new ErrorData(type: Error.Types.HasNotPermission)));
+                }
+            }
             var exportType = context.QueryStrings.Data("ExportType")?.ToLower();
             switch(exportType)
             {
@@ -93,6 +105,11 @@ namespace Implem.Pleasanter.Libraries.SiteManagement
             var dump = SettingsJsonConverter.Convert(
                 context: context,
                 param: jsonParam);
+            if (context.ErrorData.Type == Error.Types.HasNotPermission)
+            {
+                return ResponseFile.Get(apiResponse: ApiResponses.Error(
+                    context: context, errorData: context.ErrorData));
+            }
             if (dump == null)
             {
                 return ResponseFile.Get(apiResponse: ApiResponses.BadRequest(context: context));
